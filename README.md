@@ -47,3 +47,168 @@ Inserting the final data into the destination:
 1. TXT (Part One)
 2. CSV (Part Two)
 3. BigQuery (Part Three)
+
+First, we need to create and configure our [pipeline](https://beam.apache.org/documentation/programming-guide/#creating-a-pipeline), which will encapsulate all the data and steps in our data processing task.
+
+# Creating Pipeline
+
+## Pipeline configurations
+
+Import the required libraries, basically beam, and its configuration options (this will be done withing our main file - `main.py`):
+
+```python
+import apache_beam as beam
+from apache_beam.options.pipeline_options import PipelineOptions
+p = beam.Pipeline(options=PipelineOptions())
+```
+
+For the configuration, you can have your own configuration by creating an element from the PipelineOptions class:
+
+```python
+class MyOptions(PipelineOptions):
+  @classmethod
+  def _add_argparse_args(cls, parser):
+    parser.add_argument(‘ — input’,
+                      help=’Input for the pipeline’,
+                      default=’gs://my-bucket/input’)
+    parser.add_argument(‘ — output’,
+                     help=’Output for the pipeline’,
+                     default=’gs://my-bucket/output’)
+```
+
+In the example here, for input and output, the default path pointing to a file in Google Cloud Storage, you can change it with your default URL:
+
+```python
+parser.add_argument(‘ — input’,
+                     help=’Input for the pipeline’,
+                     default=’https://your/path/to/the/input’)
+```
+
+We will see how to load the local files soon. Then you can use these options in creating your pipeline:
+
+```python
+p = beam.Pipeline(options=MyOptions)
+```
+
+## Reading the input data
+
+Now, let’s read the input data from a file… First, import the text reader and writer from apache_beam.io
+
+```python
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
+```
+
+Then the first thing that our pipeline will do is loading the data from the source file:
+
+```python
+data_from_source = (p
+ | 'ReadMyFile' >> ReadFromText('./input/BreadBasket_DMS.csv')
+ )
+```
+
+Here we read the CSV file as text, it is now stored in the `data_from_source` variable.
+
+Now, how to do some processing on this data within apache beam? As we mentioned earlier, the `Map\Shuffle\Reduce` here will be implemented here by `ParDo`, `GroupByKey`, and `CoGroupByKey`… which are part of the core Beam transformation…
+
+## How to write a ParDo?
+
+There two ways to write your ParDo in beam:
+
+1. Define it as a function:
+
+```python
+def printer(data_item):
+	print data_item
+```
+
+And use it like this:
+
+```python
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('./input/BreadBasket_DMS.csv')
+	| 'Print the data' >> beam.ParDo(printer)
+)
+```
+
+2. Inherit as a class from beam.DoFn:
+
+```python
+class Printer(beam.DoFn):
+
+	def process(self, data_item):
+
+		print data_item
+```
+
+And use it like:
+
+```python
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
+	| 'Print the data' >> beam.ParDo(Printer())
+	)
+```
+
+## Calling the ParDo
+
+The two will do exactly the same thing, but you call them in different ways as we saw.
+
+Now our file looks like:
+
+```python
+# coding: utf-8
+# Updated to Python 3.X
+
+import apache_beam as beam
+
+from apache_beam.options.pipeline_options import PipelineOptions
+
+from apache_beam.io import ReadFromText
+from apache_beam.io import WriteToText
+
+p = beam.Pipeline(options=PipelineOptions())
+
+class Printer(beam.DoFn):
+
+	def process(self, data_item):
+
+		print data_item
+
+def printer(data_item):
+
+	print data_item
+
+
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('./input/BreadBasket_DMS.csv')
+	| 'Print the data' >> beam.ParDo(printer)
+)
+
+result = p.run()
+```
+
+If we run this file, it will just print the data from the source to our terminal.
+
+Please notice that we used the default PipelineOptions() here, as we don’t have specific options to set for now.
+
+Sample run as follows:
+
+```python
+python main.py
+```
+```python
+# Sample output
+.
+..
+...
+2017-02-02,15:44:42,5817,Coffee
+2017-02-02,15:58:52,5818,Coffee
+2017-02-02,15:58:52,5818,Coffee
+2017-02-02,15:58:52,5818,Juice
+2017-02-02,15:58:52,5818,Cake
+...
+..
+.
+```
+
