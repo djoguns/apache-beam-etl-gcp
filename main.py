@@ -13,25 +13,16 @@ p = beam.Pipeline(options=PipelineOptions())
 
 # write a ParDo
 # Inherit as a Class from beam.DoFn
-class Printer(beam.DoFn):
-	"""
-	"""
+class TypeOf(beam.DoFn):
+	""" """
 	def process(self, data_item):
-		"""
-		"""
+		""" """
+		print(type(data_item))
 
-		print(data_item)
-
-def printer(data_item):
-	"""
-	"""
-
-	print(data_item)
-
-# Use a ParDo
 data_from_source = (p
 	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
-	| 'Print the data' >> beam.ParDo(printer)
-)
+	# This ParDo "gives the types of the dataset"
+	| 'Check data type' >> beam.ParDo(TypeOf())
+	)
 
 result = p.run()

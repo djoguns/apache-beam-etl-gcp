@@ -212,3 +212,44 @@ python main.py
 .
 ```
 
+## Running the Transformation on the data
+
+We are reading the raw data to process it… so let’s see how to manipulate the data and extract more meaningful statistics from it.
+
+When working with the pipeline, the data sets we have called **`PCollection`**, and the operations we run called **`Transformation`**.
+As we noticed that the data is processed line by line. That is because **`ReadFromText`** generates a PCollection as an output, where each element in the output PCollection represents one line of text from the input file.
+
+We used **`ParDo`** function to run a specific operation on the data, this operation run on every element in the PCollection. As we saw, we printed every line of the data alone.
+
+Now, we will only get the dates from the input data. To do that, we will have a new **`DoFn`** to return the date only from each element.
+
+If you check the type of the data passed from the PCollection to the DoFn from the ParDo, it will return `<type ‘unicode’>` which we will treat as a string. To check that, create and use the next DoFn:
+
+```python
+class TypeOf(beam.DoFn):
+	""" """
+	def process(self, data_item):
+		""" """
+		print(type(data_item))
+
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
+	# This ParDo "gives the types of the dataset"
+	| 'Check data type' >> beam.ParDo(TypeOf())
+	)
+```
+
+This displays something like this:
+
+```
+.
+..
+...
+<class 'str'>
+<class 'str'>
+<class 'str'>
+<class 'str'>
+<class 'str'>
+<class 'str'>
+<class 'str'>
+```
