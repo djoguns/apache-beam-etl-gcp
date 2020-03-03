@@ -1,0 +1,30 @@
+--- 
+channels: 
+  - conda-forge
+  - defaults
+dependencies: 
+  - python=3.7.6
+  - numpy
+  - pandas
+  - matplotlib
+  - jupyter
+  - plotly
+  - seaborn
+  - scikit-learn
+  - gcsfs
+  - google-api-core
+  - google-auth
+  - google-auth-oauthlib
+  - google-cloud-bigquery
+  - google-cloud-bigquery-storage
+  - google-cloud-core
+  - google-cloud-storage
+  - google-resumable-media
+  - googleapis-common-protos
+  - pip
+  -
+    pip:
+      - apache_beam[gcp]
+      - apache-beam[all]
+name: dflow-env
+prefix: envs/dflow-env
