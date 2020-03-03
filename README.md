@@ -50,7 +50,7 @@ Inserting the final data into the destination:
 
 First, we need to create and configure our [pipeline](https://beam.apache.org/documentation/programming-guide/#creating-a-pipeline), which will encapsulate all the data and steps in our data processing task.
 
-# Creating Pipeline
+# Part One
 
 ## Pipeline configurations
 
@@ -476,4 +476,73 @@ data_from_source = (p
 	# Export results to a new file
 	| 'Export results to a new file' >> WriteToText('output/day-list-pardo', '.txt')
 	)
+```
+
+# Part Two
+
+In this part, we will achieve the following:
+
+1. Getting a unique list of items that had been sold in different days.
+2. Getting the maximum and the minimum number of transactions per item, to get the most and less popular items.
+3. More built-in transformation functions (**`CombinePerKey`** — **`CombineGlobally`**).
+
+## Code Cleaning
+
+We will enhance the quality of our code. First, we will read the data from the CSV and will in a totally separated step.
+
+```python
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
+	)
+```
+
+The `data_from_source` can be used in many different operations as shown below:
+
+```python
+operation_001 = (data_from_source
+	| 'some operations 0011' >> ...
+)
+operation_002 = (data_from_source
+	| 'some operations 0021' >> ...
+)
+```
+
+## Data Transforming
+
+We will create a `DoFn` that convert the data for something like an object, so we can play around with it easily. (Python dictionary if you know it).
+
+
+```python
+class Transaction(beam.DoFn):
+	"""
+	"""
+	def process(self, element):
+		""" """
+		(date, time, id, item) = element.split(',')
+
+		return [{"date": date, "time": time, "id": id, "item": item}]
+```
+
+So we can easily after that map the items to the date, and group the results by date:
+
+```python
+# Use the ParDo object
+list_of_daily_items = (data_from_source
+	| 'Clean the item' >> beam.ParDo(Transaction())
+	| 'Map the item to its date' >> beam.Map(lambda record: (record['date'], record['item']))
+	| 'GroupBy the data by date' >> beam.GroupByKey()
+	)
+```
+
+This will generate something looks like this:
+
+```
+...
+...
+[{'date': '2017-04-09', 'time': '14:32:58', 'id': '9682', 'item': 'Tacos/Fajita'}]
+[{'date': '2017-04-09', 'time': '14:32:58', 'id': '9682', 'item': 'Coffee'}]
+[{'date': '2017-04-09', 'time': '14:32:58', 'id': '9682', 'item': 'Tea'}]
+[{'date': '2017-04-09', 'time': '14:57:06', 'id': '9683', 'item': 'Coffee'}]
+[{'date': '2017-04-09', 'time': '14:57:06', 'id': '9683', 'item': 'Pastry'}]
+[{'date': '2017-04-09', 'time': '15:04:24', 'id': '9684', 'item': 'Smoothies'}]
 ```
