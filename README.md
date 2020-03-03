@@ -68,20 +68,20 @@ For the configuration, you can have your own configuration by creating an elemen
 class MyOptions(PipelineOptions):
   @classmethod
   def _add_argparse_args(cls, parser):
-    parser.add_argument(‘ — input’,
-                      help=’Input for the pipeline’,
-                      default=’gs://my-bucket/input’)
-    parser.add_argument(‘ — output’,
-                     help=’Output for the pipeline’,
-                     default=’gs://my-bucket/output’)
+    parser.add_argument(' — input',
+                      help='Input for the pipeline',
+                      default='gs://my-bucket/input')
+    parser.add_argument(' — output',
+                     help='Output for the pipeline',
+                     default='gs://my-bucket/output')
 ```
 
 In the example here, for input and output, the default path pointing to a file in Google Cloud Storage, you can change it with your default URL:
 
 ```python
-parser.add_argument(‘ — input’,
-                     help=’Input for the pipeline’,
-                     default=’https://your/path/to/the/input’)
+parser.add_argument(' — input',
+                     help='Input for the pipeline',
+                     default='https://your/path/to/the/input')
 ```
 
 We will see how to load the local files soon. Then you can use these options in creating your pipeline:
@@ -103,7 +103,7 @@ Then the first thing that our pipeline will do is loading the data from the sour
 
 ```python
 data_from_source = (p
- | 'ReadMyFile' >> ReadFromText('./input/BreadBasket_DMS.csv')
+ | 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
  )
 ```
 
@@ -119,14 +119,14 @@ There two ways to write your ParDo in beam:
 
 ```python
 def printer(data_item):
-	print data_item
+	print(data_item)
 ```
 
 And use it like this:
 
 ```python
 data_from_source = (p
-	| 'ReadMyFile' >> ReadFromText('./input/BreadBasket_DMS.csv')
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
 	| 'Print the data' >> beam.ParDo(printer)
 )
 ```
@@ -138,7 +138,7 @@ class Printer(beam.DoFn):
 
 	def process(self, data_item):
 
-		print data_item
+		print(data_item)
 ```
 
 And use it like:
@@ -173,15 +173,15 @@ class Printer(beam.DoFn):
 
 	def process(self, data_item):
 
-		print data_item
+		print(data_item)
 
 def printer(data_item):
 
-	print data_item
+	print(data_item)
 
 
 data_from_source = (p
-	| 'ReadMyFile' >> ReadFromText('./input/BreadBasket_DMS.csv')
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
 	| 'Print the data' >> beam.ParDo(printer)
 )
 
@@ -197,7 +197,8 @@ Sample run as follows:
 ```python
 python main.py
 ```
-```python
+
+```
 # Sample output
 .
 ..
@@ -252,4 +253,27 @@ This displays something like this:
 <class 'str'>
 <class 'str'>
 <class 'str'>
+...
+..
+.
 ```
+
+it is a string. We can split it by the comma operator, which will return an array of elements. We can easily use `beam.Map` which accepts `lambda` function and implements it on every record of the PCollection.
+
+Our lambda function is simple here, split the input by the comma operator, then return the first element:
+
+```python
+beam.Map(lambda record: (record.split(‘,’))[0])
+```
+
+Our pipeline will then look like this:
+
+```python
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
+	| 'Splitter using beam.Map' >> beam.Map(lambda record: (record.split(','))[0])
+	| 'Print the date' >> beam.ParDo(Printer())
+	)
+```
+
+The output should be something like this:

@@ -11,18 +11,21 @@ from apache_beam.io import WriteToText
 # Default PipelineOptions()
 p = beam.Pipeline(options=PipelineOptions())
 
-# write a ParDo
 # Inherit as a Class from beam.DoFn
-class TypeOf(beam.DoFn):
-	""" """
+class Printer(beam.DoFn):
+	"""
+	"""
 	def process(self, data_item):
-		""" """
-		print(type(data_item))
+		"""
+		"""
+		print(data_item)
 
+# Use a ParDo
 data_from_source = (p
 	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
-	# This ParDo "gives the types of the dataset"
-	| 'Check data type' >> beam.ParDo(TypeOf())
+	#  Using beam.Map to accept lambda function
+	| 'Splitter using beam.Map' >> beam.Map(lambda record: (record.split(','))[0])
+	| 'Print the date' >> beam.ParDo(Printer())
 	)
 
 result = p.run()
