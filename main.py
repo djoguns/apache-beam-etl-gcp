@@ -22,7 +22,9 @@ class GetTotal(beam.DoFn):
 		return print([(str(element[0]), sum(element[1]))])
 
 # Use a ParDo
+# Uses the beam.ParDo
 data_from_source = (p
+	
 	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
 	
 	# Using beam.Map to accept lambda function
@@ -35,7 +37,13 @@ data_from_source = (p
 	| 'GroupBy the data' >> beam.GroupByKey()	
 
 	# Get the sum
+	# Option 1
 	| 'Get the total in each day' >> beam.ParDo(GetTotal())
+	# Option 2
+	# | 'Sum using beam.Map' >> beam.Map(lambda record: (record[0],sum(record[1])))
+
+	# Export results to a new file
+	| 'Export results to a new file' >> WriteToText('output/day-list-pardo', '.txt')
 	)
 
 result = p.run()
