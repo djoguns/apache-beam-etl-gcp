@@ -293,3 +293,116 @@ The output should be something like this:
 ..
 .
 ```
+
+Great, now we have only the dates. What else can we do with this data?
+
+Let’s count how many orders made everyday. To do that, we will need to do three simple steps.
+
+1. Map each record with 1 as a counter.
+2. Group the records with the similar data.
+3. Get the sum of the 1s.
+
+### Map each record
+
+```python
+	| 'Map record to 1' >> beam.Map(lambda record: (record, 1))
+```
+
+This should output:
+
+```
+.
+..
+...
+(u'2017–04–09', 1)
+(u'2017–04–09', 1)
+(u'2017–04–09', 1)
+..
+.
+```
+
+### Group the records by similar data
+
+```python
+	| 'GroupBy the data' >> beam.GroupByKey()
+```
+
+Outputs:
+
+```
+(u'2016–11–24', [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1])
+```
+
+### Get the sum
+
+We have two ways to do this - `beam.Map` or `beam.ParDo`
+
+```python
+	| 'Sum using beam.Map' >> beam.Map(lambda record: (record[0],sum(record[1])))
+```
+
+Alternatively, using `ParDo`:
+
+```python
+class GetTotal(beam.DoFn):
+	"""
+	"""
+	def process(self, element):
+		""" """
+
+		# get the total transactions for one item
+		return [(str(element[0]),sum(element[1]))]
+	...
+	...
+
+# In your pipeline
+	| 'Get the total in each day' >> beam.ParDo(GetTotal())
+```
+
+Putting the steps together, we have:
+
+```python
+# Inherit as a Class from beam.DoFn
+class GetTotal(beam.DoFn):
+	"""
+	"""
+	def process(self, element):
+		""" """
+
+		# get the total transactions for one item
+		return print([(str(element[0]), sum(element[1]))])
+
+# Use a ParDo
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
+	
+	# Using beam.Map to accept lambda function
+	| 'Splitter using beam.Map' >> beam.Map(lambda record: (record.split(','))[0])
+	
+	# Map each record with 1 as a counter.
+	| 'Map record to 1' >> beam.Map(lambda record: (record, 1))
+
+ 	# Group the records by similar data
+	| 'GroupBy the data' >> beam.GroupByKey()	
+
+	# Get the sum
+	| 'Get the total in each day' >> beam.ParDo(GetTotal())
+	)
+
+result = p.run()
+```
+
+After running the application, we get a similar output as follows:
+
+```
+.
+..
+...
+[('2017-04-03', 121)]
+[('2017-04-04', 120)]
+[('2017-04-05', 145)]
+[('2017-04-06', 119)]
+[('2017-04-07', 103)]
+[('2017-04-08', 209)]
+[('2017-04-09', 72)]
+```
