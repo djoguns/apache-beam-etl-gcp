@@ -546,3 +546,135 @@ This will generate something looks like this:
 [{'date': '2017-04-09', 'time': '14:57:06', 'id': '9683', 'item': 'Pastry'}]
 [{'date': '2017-04-09', 'time': '15:04:24', 'id': '9684', 'item': 'Smoothies'}]
 ```
+
+Creating a final code for this, we have:
+
+```python
+# Default PipelineOptions()
+p = beam.Pipeline(options=PipelineOptions())
+
+# Inherit as a Class from beam.DoFn
+class Transaction(beam.DoFn):
+	"""
+	"""
+	def process(self, element):
+		""" """
+		date, time, id, item = element.split(',')
+
+		return print([{"date": date, "time": time, "id": id, "item": item}])
+
+# Use a ParDo
+data_from_source = (p
+	| 'ReadMyFile' >> ReadFromText('input/BreadBasket_DMS.csv')
+	)
+
+# Use the ParDo object
+list_of_daily_items = (data_from_source
+	| 'Clean the item' >> beam.ParDo(Transaction())
+	| 'Map the item to its date' >> beam.Map(lambda record: (record['date'], record['item']))
+	| 'GroupBy the data by date' >> beam.GroupByKey()
+	| 'Export results to daily-items-list file' >> WriteToText('output/daily-items-list', '.txt')
+	)
+
+result = p.run()
+```
+
+Sample Output is shown below:
+
+```
+('Date', ['Item'])
+('2016-10-30', ['Bread', 'Scandinavian', 'Scandinavian', 'Hot chocolate', 'Jam', 'Cookies', 'Muffin', 'Coffee', 'Pastry', 'Bread', 'Medialuna', 'Pastry', 'Muffin', 'Medialuna', 'Pastry', 'Coffee', 'Tea', 'Pastry', 'Bread', 'Bread', 'Muffin', 'Scandinavian', 'Medialuna', 'Bread', 'Medialuna', 'Bread', 'NONE', 'Jam', 'Coffee', 'Tartine', 'Pastry', 'Tea', 'Basket', 'Bread', 'Coffee', 'Bread', 'Medialuna', 'Pastry', 'NONE', 'NONE', 'Mineral water', ...
+...
+...
+...
+```
+
+# Exploring Most and Least Popular item
+
+We will create a new operation to get the `maximum` and the `minimum` number of transactions happened for each item in all the data. To do that, we need first to count the appearance of each item in the whole data set. Then we will get the `max` and `min`.
+
+We will reuse the **`data_from_source`** again as a source for our operation. And will map the item to 1 every time it appears. It is the same approach we took for counting the daily transactions but will do it on the item.
+
+We will use the same **`GetTotal`** `DoFn` we created last time:
+
+```python
+class GetTotal(beam.DoFn):
+	def process(self, element):
+
+	# get the total transactions for one item
+	return [(str(element[0]), sum(element[1]))]
+```
+
+We can then have something like this to get the total count for each item:
+
+```python
+number_of_transactions_per_item = (data_from_source
+	| 'Clean the item for items count' >> beam.ParDo(Transaction())
+	| 'Map record item to 1 for items count' >> beam.Map(lambda record: (record['item'], 1))
+	| 'GroupBy the data for items count' >> beam.GroupByKey()
+	| 'Get the total for each item' >> beam.ParDo(GetTotal())
+	)
+```
+
+Or we can use some built-in features like `CombinePerKey` to do the same:
+
+```python
+number_of_transactions_per_item = (data_from_source
+	| 'Clean the item for items count' >> beam.ParDo(Transaction())
+	| 'Map record item to 1 for items count' >> beam.Map(lambda record: (record['item'], 1))
+	| beam.CombinePerKey(sum)
+	)
+```
+
+Both code snippet will return the same result.
+
+**`CombinePerKey`** will do something similar to **`GroupByKey`**, but will also apply some logic to the operation as you can see. It is doing the same logic we wrote in the **`GetTotal`** `DoFn` before.
+
+The output from any of them will look like (a print screen `ParDo` has been to display the output):
+
+```
+...
+...
+[('Half slice Monster ', 6)]
+[('Gift voucher', 1)]
+[('Cherry me Dried fruit', 3)]
+[('Mortimer', 5)]
+[('Raw bars', 1)]
+[('Tacos/Fajita', 11)]
+```
+
+We need to check the maximum and the minimum within all these items, which can not be achieved if we keep treating it as a **`PCollection`**, and working on each data element as a single item.
+
+One solution is to convert the data we have to a dictionary. That will work as long as we work on 2-element tuples. In our case we have the element name as a key and its count as a value. Which are great.
+
+We will use another built-in function **`ToDictCombineFn`** which come under **`CombineGlobally`** and it will convert all our data to a dictionary.
+
+```python
+	| 'Convert data into Dictionary' >> (
+		beam.CombineGlobally(beam.combiners.ToDictCombineFn())
+		)
+ ```
+
+That will return the data looks like:
+
+```
+{'Item': 1, 'Bread': 3325, 'Scandinavian': 277, 'Hot chocolate': 590, 'Jam': 149, 'Cookies': 540, 'Muffin': 370, 'Coffee': 5471, ..., ..., ..., 'Christmas common': 11, 'Argentina Night': 7, 'Half slice Monster ': 6, 'Gift voucher': 1, 'Cherry me Dried fruit': 3, 'Mortimer': 5, 'Raw bars': 1, 'Tacos/Fajita': 11}
+```
+
+We can then play with this to extract the maximum and minimum.
+
+As we used the data_from_source multiple times, we will use the `number_of_transactions_per_item` couple of times. One to get the maximum, and another to get the minimum.
+
+```python
+most_popular_item = (
+	number_of_transactions_per_item
+	| 'Get the item with maximum count' >> beam.Map(lambda item: max(item, key=item.get))
+	)
+```
+
+```python
+less_popular_item = (
+	number_of_transactions_per_item 
+	| 'Get the item with minimum count' >> beam.Map(lambda item: min(item, key=item.get))
+	)
+```
