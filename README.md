@@ -678,3 +678,43 @@ less_popular_item = (
 	| 'Get the item with minimum count' >> beam.Map(lambda item: min(item, key=item.get))
 	)
 ```
+
+As you must have noticed, we habe not considered multiple items with the same maximum or minimum count. So if you want to return a list of the items which have the maximum number, or the top 10 as an example, you will need to create a separate `DoFn`.
+
+We can use **`beam.combiners.ToListCombineFn()`** to convert the data to a list and work on it.
+
+The following code snippet shows how to get the top and bottom elements. But ensure to use it with `Option 3` from the main code (this combines the elements to list)
+
+```python
+# Option 3
+number_of_transactions_per_item = (
+	data_from_source
+	| 'Clean the item for items count' >> beam.ParDo(Transaction())
+	| 'Map record item to 1 for items count' >> beam.Map(lambda record: (record['item'], 1))
+	| 'Get the total for each item' >> beam.CombinePerKey(sum)
+	| 'Convert data into List' >> (
+		beam.CombineGlobally(beam.combiners.ToListCombineFn()) # ToDictCombineFn())
+		)
+	)
+
+# This will work using the "ToListCombineFn" from Option 3 above
+# Top 10
+top10 = (
+	number_of_transactions_per_item
+	| 'Top 10' >> beam.ParDo(GetTop10Fn())
+	| 'Choose elements only from top 10' >> beam.Map(lambda record: record[0])	
+	| 'Prints top 10 data to screen' >> beam.ParDo(Printer())
+	)
+
+# Bottom 10
+bottom10 = (
+	number_of_transactions_per_item
+	| 'Bottom 10' >> beam.ParDo(GetBottom10Fn())
+	| 'Choose elements only from bottom 10' >> beam.Map(lambda record: record[0])	
+	| 'Prints bottom 10 data to screen' >> beam.ParDo(Printer())
+	)
+
+```
+
+This [link](https://stackoverflow.com/questions/56616576/apache-beam-python-how-to-get-the-top-10-elements-of-a-pcollection-with-accu
+) might give some insight.
